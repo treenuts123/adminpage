@@ -1,0 +1,133 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>관리자 페이지</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      margin: 30px;
+      padding: 0;
+      background-color: #fafafa;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th {
+      background-color: #f4f4f4;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .status-buttons {
+      display: flex;
+      justify-content: space-around;
+    }
+  </style>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+
+    const supabaseUrl = 'https://sdnbavlcgejmvdtmzbep.supabase.co'
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmJhdmxjZ2VqbXZkdG16YmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNzM3OTEsImV4cCI6MjA2MDk0OTc5MX0.fmLedtsLoY140wrbyFmITQiu0BZQUfQxs-qIX7LmibQ'
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // 예약 목록 로드
+    window.loadReservations = async function() {
+      const { data, error } = await supabase
+        .from('reservations')
+        .select('*')
+
+      if (error) {
+        alert('예약 정보 로드 실패');
+        return;
+      }
+
+      const table = document.getElementById('reservationsTable');
+      data.forEach(reservation => {
+        const row = table.insertRow();
+        row.innerHTML = `
+          <td>${reservation.name}</td>
+          <td>${reservation.phone}</td>
+          <td>${reservation.count}</td>
+          <td>${JSON.stringify(reservation.welcome_drinks).replace(/["{}"]/g, '')}</td>
+          <td>${reservation.status}</td>
+          <td>
+            <div class="status-buttons">
+              <button onclick="updateStatus('${reservation.booking_number}', '입금확인중')">입금확인중</button>
+              <button onclick="updateStatus('${reservation.booking_number}', '예매완료')">예매완료</button>
+              <button onclick="updateStatus('${reservation.booking_number}', '환불대기중')">환불대기중</button>
+              <button onclick="updateStatus('${reservation.booking_number}', '취소완료')">취소완료</button>
+            </div>
+          </td>
+        `;
+      });
+    }
+
+    // 상태 변경 함수
+    window.updateStatus = async function(bookingNumber, newStatus) {
+      const { data, error } = await supabase
+        .from('reservations')
+        .update({ status: newStatus })
+        .eq('booking_number', bookingNumber)
+
+      if (error) {
+        alert('상태 변경 실패');
+        return;
+      }
+
+      alert('상태가 변경되었습니다.');
+      window.location.reload();  // 상태 변경 후 새로고침
+    }
+
+    window.addEventListener('load', loadReservations);
+  </script>
+</head>
+<body>
+  <h1>관리자 페이지</h1>
+  <div class="container">
+    <h3>예약 목록</h3>
+    <table id="reservationsTable">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>전화번호</th>
+          <th>인원수</th>
+          <th>웰컴드링크</th>
+          <th>상태</th>
+          <th>상태 변경</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 예약 데이터가 여기에 채워짐 -->
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>
+
