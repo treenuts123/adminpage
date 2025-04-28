@@ -51,6 +51,27 @@
     #statusInfo {
       margin-top: 10px;
     }
+    /* 팝업 스타일 */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    .popup-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .popup button {
+      background-color: #f44336;
+    }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
@@ -99,8 +120,6 @@
 
       // 상태 변경 버튼을 숨기고, 입금확인 버튼을 보여줌
       button.style.display = 'none';
-
-      // 상태 변경 버튼이 눌리면 현재 상태를 보여줌
       statusInfo.innerHTML = `
         <p>현재 상태: 입금확인중</p>
         <button onclick="changeStatus('${bookingNumber}', '입금확인중')">입금확인</button>
@@ -146,6 +165,19 @@
       window.location.reload();  // 페이지 새로고침
     }
 
+    // 팝업 띄우기
+    window.showRefundPopup = function(refundAccount, refundBank) {
+      const popup = document.getElementById('refundPopup');
+      popup.querySelector('#refundAccountInfo').textContent = `환불 계좌: ${refundAccount}`;
+      popup.querySelector('#refundBankInfo').textContent = `환불 은행: ${refundBank}`;
+      popup.style.display = 'flex';
+    }
+
+    // 팝업 닫기
+    window.closePopup = function() {
+      document.getElementById('refundPopup').style.display = 'none';
+    }
+
     window.addEventListener('load', loadReservations);
   </script>
 </head>
@@ -169,6 +201,15 @@
         <!-- 예약 데이터가 여기에 채워짐 -->
       </tbody>
     </table>
+  </div>
+
+  <!-- 팝업 -->
+  <div id="refundPopup" class="popup">
+    <div class="popup-content">
+      <p id="refundAccountInfo"></p>
+      <p id="refundBankInfo"></p>
+      <button onclick="closePopup()">닫기</button>
+    </div>
   </div>
 </body>
 </html>
