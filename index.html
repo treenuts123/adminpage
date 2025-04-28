@@ -44,17 +44,12 @@
     button:hover {
       background-color: #45a049;
     }
-    .status-buttons {
-      display: flex;
-      justify-content: space-around;
-    }
-    .refund-info {
+    .status-buttons, .refund-info {
       display: none;
       margin-top: 10px;
-      text-align: center;
     }
-    #refundAccountArea {
-      display: none;
+    #statusInfo {
+      margin-top: 10px;
     }
   </style>
   <script type="module">
@@ -85,27 +80,40 @@
           <td>${JSON.stringify(reservation.welcome_drinks).replace(/["{}"]/g, '')}</td>
           <td>${reservation.status}</td>
           <td>
-            <div class="status-buttons">
-              <button onclick="updateStatus('${reservation.booking_number}', '입금확인중', this)">입금확인중</button>
-              <button onclick="updateStatus('${reservation.booking_number}', '예매완료', this)">예매완료</button>
-              <button onclick="updateStatus('${reservation.booking_number}', '환불대기중', this)">환불대기중</button>
-              <button onclick="updateStatus('${reservation.booking_number}', '취소완료', this)">취소완료</button>
-            </div>
+            <button onclick="showStateChangeOptions('${reservation.booking_number}', this)">상태변경</button>
+            <div id="statusInfo-${reservation.booking_number}"></div>
           </td>
           <td>
-            <button onclick="showRefundInfo('${reservation.booking_number}')">계좌확인</button>
             <div class="refund-info" id="refundInfo-${reservation.booking_number}">
-              <p>환불 계좌: ${reservation.refund_account || '없음'}</p>
-              <p>환불 금액: ${12_000 * reservation.count}원</p>
-              <button onclick="completeRefund('${reservation.booking_number}')">환불완료</button>
+              <button onclick="confirmRefund('${reservation.booking_number}')">계좌확인</button>
             </div>
           </td>
         `;
       });
     }
 
-    // 상태 변경 함수
-    window.updateStatus = async function(bookingNumber, newStatus, button) {
+    // 상태변경 버튼 클릭 시 상태 변경 옵션 표시
+    window.showStateChangeOptions = function(bookingNumber, button) {
+      const statusInfo = document.getElementById(`statusInfo-${bookingNumber}`);
+      const refundInfo = document.getElementById(`refundInfo-${bookingNumber}`);
+
+      // 상태 변경 버튼을 숨기고, 입금확인 버튼을 보여줌
+      button.style.display = 'none';
+
+      // 상태 변경 버튼이 눌리면 현재 상태를 보여줌
+      statusInfo.innerHTML = `
+        <p>현재 상태: 입금확인중</p>
+        <button onclick="changeStatus('${bookingNumber}', '입금확인중')">입금확인</button>
+      `;
+
+      // 상태가 환불요청이면 계좌확인 버튼 표시
+      if (statusInfo.innerText.includes('환불요청')) {
+        refundInfo.style.display = 'block';
+      }
+    }
+
+    // 상태 변경 (입금확인)
+    window.changeStatus = async function(bookingNumber, newStatus) {
       const { data, error } = await supabase
         .from('reservations')
         .update({ status: newStatus })
@@ -118,22 +126,12 @@
 
       alert('상태가 변경되었습니다.');
 
-      // 상태 변경 버튼 처리 (입금확인 버튼만 보여주기)
-      const statusButtons = button.closest('td').querySelector('.status-buttons');
-      statusButtons.querySelectorAll('button').forEach(btn => btn.style.display = 'none'); // 숨기기
-      button.style.display = 'inline'; // 입금확인 버튼만 보이도록
-
-      window.location.reload();  // 상태 변경 후 새로고침
+      // 입금확인 버튼 숨기기
+      document.getElementById(`statusInfo-${bookingNumber}`).style.display = 'none';
     }
 
-    // 계좌 확인 버튼 클릭 시, 환불 계좌 정보 표시
-    window.showRefundInfo = function(bookingNumber) {
-      const refundInfoElement = document.getElementById(`refundInfo-${bookingNumber}`);
-      refundInfoElement.style.display = 'block';
-    }
-
-    // 환불 완료 버튼 클릭 시, 상태를 '환불완료'로 업데이트
-    window.completeRefund = async function(bookingNumber) {
+    // 환불 완료 버튼 클릭 시 상태 변경
+    window.confirmRefund = async function(bookingNumber) {
       const { data, error } = await supabase
         .from('reservations')
         .update({ status: '환불완료' })
@@ -163,8 +161,8 @@
           <th>인원수</th>
           <th>웰컴드링크</th>
           <th>상태</th>
-          <th>상태 변경</th>
-          <th>환불 정보</th>
+          <th>상태변경</th>
+          <th>환불정보</th>
         </tr>
       </thead>
       <tbody>
