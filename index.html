@@ -6,26 +6,25 @@
   <style>
     body {
       font-family: 'Noto Sans KR', sans-serif;
-      margin: 30px;
-      padding: 0;
       background-color: #fafafa;
+      padding: 30px;
       color: #333;
     }
     h1 {
       text-align: center;
-      margin-bottom: 30px;
     }
     .container {
-      max-width: 1000px;
-      margin: 0 auto;
+      max-width: 1200px;
+      margin: auto;
       background: white;
-      padding: 30px;
+      padding: 20px;
       border-radius: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     table {
       width: 100%;
       border-collapse: collapse;
+      margin-top: 20px;
     }
     th, td {
       padding: 10px;
@@ -33,89 +32,123 @@
       text-align: center;
     }
     th {
-      background-color: #f4f4f4;
+      background: #f0f0f0;
     }
     button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 5px;
       background-color: #4CAF50;
       color: white;
-      padding: 5px 10px;
       cursor: pointer;
     }
-    button:hover {
-      background-color: #45a049;
+    button[disabled] {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+    #popup {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+    }
+    #popupContent {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+    }
+    #popupContent button {
+      margin: 10px 5px 0;
     }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    const supabase = createClient(
+      'https://sdnbavlcgejmvdtmzbep.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmJhdmxjZ2VqbXZkdG16YmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNzM3OTEsImV4cCI6MjA2MDk0OTc5MX0.fmLedtsLoY140wrbyFmITQiu0BZQUfQxs-qIX7LmibQ'
+    )
 
-    const supabaseUrl = 'https://sdnbavlcgejmvdtmzbep.supabase.co'
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmJhdmxjZ2VqbXZkdG16YmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNzM3OTEsImV4cCI6MjA2MDk0OTc5MX0.fmLedtsLoY140wrbyFmITQiu0BZQUfQxs-qIX7LmibQ'
-    const supabase = createClient(supabaseUrl, supabaseKey)
+    let currentRefundBooking = null;
+    let refundInfoMap = {};
 
-    window.loadReservations = async function() {
-      const { data, error } = await supabase
-        .from('reservations')
-        .select('*')
-
-      if (error) {
-        alert('예약 정보 로드 실패');
-        return;
-      }
-
-      const table = document.getElementById('reservationsTable');
-      data.forEach(reservation => {
-        const row = table.insertRow();
-        row.setAttribute('data-booking-number', reservation.booking_number);
+    async function loadData() {
+      const { data, error } = await supabase.from('reservations').select('*');
+      if (error) return alert('불러오기 실패');
+      const tbody = document.querySelector('#reservationsTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(r => {
+        refundInfoMap[r.booking_number] = { bank: r.refund_bank, account: r.refund_account };
+        const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${reservation.name}</td>
-          <td>${reservation.phone}</td>
-          <td>${reservation.count}</td>
-          <td>${JSON.stringify(reservation.welcome_drinks).replace(/["{}"]/g, '')}</td>
-          <td class="status-cell">${reservation.status}</td>
+          <td>${r.name}</td>
+          <td>${r.phone}</td>
+          <td>${r.count}</td>
+          <td>${Object.entries(r.welcome_drinks || {}).map(([k,v])=>`${k} ${v}`).join(', ')}</td>
+          <td class="status" data-id="${r.booking_number}">${r.status}</td>
           <td>
-            <button onclick="showStatusChange('${reservation.booking_number}', this)">상태변경</button>
-            <div id="statusBox-${reservation.booking_number}"></div>
+            <button onclick="confirmDeposit('${r.booking_number}')" ${r.status !== '입금확인 대기' ? 'disabled' : ''}>입금확인</button>
           </td>
           <td>
-            ${reservation.status === '취소완료' ? `<button onclick="showRefundPopup('${reservation.refund_account}', '${reservation.refund_bank}')">정보확인</button>` : ''}
+            ${r.status === '취소대기중'
+              ? `<button onclick="showRefundPopup('${r.booking_number}')">환불계좌확인</button>`
+              : r.status === '취소완료'
+                ? `<button onclick="showRefundInfo('${r.booking_number}')">환불정보확인</button>`
+                : `<button disabled>환불</button>`
+            }
           </td>
         `;
+        tbody.appendChild(row);
       });
     }
 
-    window.showStatusChange = function(bookingNumber, btn) {
-      btn.style.display = 'none';
-      const box = document.getElementById(`statusBox-${bookingNumber}`);
-      box.innerHTML = `
-        <p>현재 상태: 입금확인중</p>
-        <button onclick="updateToConfirmed('${bookingNumber}')">입금 확인</button>
+    async function confirmDeposit(id) {
+      const { error } = await supabase.from('reservations').update({ status: '입금완료' }).eq('booking_number', id);
+      if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${id}"]`).textContent = '입금완료';
+      event.target.disabled = true;
+    }
+
+    function showRefundPopup(id) {
+      currentRefundBooking = id;
+      const info = refundInfoMap[id];
+      document.getElementById('popupContent').innerHTML = `
+        <p>환불 계좌: ${info.account || '입력안됨'}</p>
+        <p>환불 은행: ${info.bank || '입력안됨'}</p>
+        <button onclick="completeRefund()">환불완료</button>
+        <button onclick="closePopup()">취소</button>
       `;
+      document.getElementById('popup').style.display = 'flex';
     }
 
-    window.updateToConfirmed = async function(bookingNumber) {
-      const { error } = await supabase
-        .from('reservations')
-        .update({ status: '예매완료' })
-        .eq('booking_number', bookingNumber)
-
-      if (error) {
-        alert('상태 업데이트 실패');
-        return;
-      }
-
-      const row = document.querySelector(`tr[data-booking-number="${bookingNumber}"]`);
-      const cell = row.querySelector('.status-cell');
-      cell.textContent = '예매완료';
-
-      const box = document.getElementById(`statusBox-${bookingNumber}`);
-      box.innerHTML = '';
+    async function completeRefund() {
+      if (!currentRefundBooking) return;
+      const { error } = await supabase.from('reservations').update({ status: '취소완료' }).eq('booking_number', currentRefundBooking);
+      if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${currentRefundBooking}"]`).textContent = '취소완료';
+      closePopup();
+      loadData();
     }
 
-    window.showRefundPopup = function(account, bank) {
-      alert(`환불 계좌: ${account}\n은행: ${bank}`);
+    function showRefundInfo(id) {
+      const info = refundInfoMap[id];
+      document.getElementById('popupContent').innerHTML = `
+        <p>환불 계좌: ${info.account || '입력안됨'}</p>
+        <p>환불 은행: ${info.bank || '입력안됨'}</p>
+        <button onclick="closePopup()">닫기</button>
+      `;
+      document.getElementById('popup').style.display = 'flex';
     }
 
-    window.addEventListener('load', loadReservations);
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      currentRefundBooking = null;
+    }
+
+    window.addEventListener('load', loadData);
   </script>
 </head>
 <body>
@@ -129,14 +162,15 @@
           <th>인원수</th>
           <th>웰컴드링크</th>
           <th>상태</th>
-          <th>상태변경</th>
+          <th>입금확인</th>
           <th>환불정보</th>
         </tr>
       </thead>
-      <tbody>
-        <!-- 예약 데이터 삽입 -->
-      </tbody>
+      <tbody></tbody>
     </table>
+  </div>
+  <div id="popup">
+    <div id="popupContent"></div>
   </div>
 </body>
 </html>
