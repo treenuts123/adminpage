@@ -15,7 +15,7 @@
       text-align: center;
     }
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: auto;
       background: white;
       padding: 20px;
@@ -47,24 +47,6 @@
       background-color: #aaa;
       cursor: not-allowed;
     }
-    #popup {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      justify-content: center;
-      align-items: center;
-    }
-    #popupContent {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      width: 300px;
-      text-align: center;
-    }
-    #popupContent button {
-      margin: 10px 5px 0;
-    }
   </style>
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
@@ -73,75 +55,53 @@
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmJhdmxjZ2VqbXZkdG16YmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNzM3OTEsImV4cCI6MjA2MDk0OTc5MX0.fmLedtsLoY140wrbyFmITQiu0BZQUfQxs-qIX7LmibQ'
     )
 
-    let currentRefundId = null;
-    let refundInfoMap = {};
-
     async function loadRefunds() {
       const { data, error } = await supabase.from('reservations').select('*');
-      if (error) return alert('불러오기 실패');
-
+      if (error) {
+        alert('데이터 불러오기 실패');
+        return;
+      }
       const tbody = document.querySelector('#refundTable tbody');
       tbody.innerHTML = '';
+
       data.forEach(r => {
-        if (!r.refund_account && !r.refund_bank) return;
-        refundInfoMap[r.booking_number] = { bank: r.refund_bank, account: r.refund_account };
+        if (!r.refund_account || !r.refund_bank) return;
+
+        const refundAmount = r.count * 12000;
+        const isCompleted = r.status === '환불완료';
+
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>${r.name}</td>
           <td>${r.phone}</td>
-          <td>${r.refund_bank || ''}</td>
-          <td>${r.refund_account || ''}</td>
+          <td>${r.refund_bank}</td>
+          <td>${r.refund_account}</td>
+          <td>${refundAmount.toLocaleString()}원</td>
           <td class="status" data-id="${r.booking_number}">${r.status}</td>
           <td>
-            ${r.status === '환불완료'
-              ? `<button onclick="showInfo('${r.booking_number}')">환불정보확인</button>`
-              : `<button onclick="showConfirmPopup('${r.booking_number}')">환불완료</button>`
-            }
+            <button onclick="confirmRefund('${r.booking_number}', this)" ${isCompleted ? 'disabled' : ''}>
+              환불완료
+            </button>
           </td>
         `;
         tbody.appendChild(row);
       });
     }
 
-    window.showConfirmPopup = function(id) {
-      currentRefundId = id;
-      const info = refundInfoMap[id];
-      const content = document.getElementById('popupContent');
-      content.innerHTML = `
-        <p>환불 계좌: ${info.account || '없음'}</p>
-        <p>환불 은행: ${info.bank || '없음'}</p>
-        <button onclick="confirmRefund()">환불완료</button>
-        <button onclick="closePopup()">취소</button>
-      `;
-      document.getElementById('popup').style.display = 'flex';
-    }
-
-    window.confirmRefund = async function() {
-      if (!currentRefundId) return;
+    window.confirmRefund = async function(bookingNumber, btn) {
       const { error } = await supabase
         .from('reservations')
         .update({ status: '환불완료' })
-        .eq('booking_number', currentRefundId);
-      if (error) return alert('업데이트 실패');
-      document.querySelector(`.status[data-id="${currentRefundId}"]`).textContent = '환불완료';
-      closePopup();
-      loadRefunds();
-    }
+        .eq('booking_number', bookingNumber);
 
-    window.showInfo = function(id) {
-      const info = refundInfoMap[id];
-      const content = document.getElementById('popupContent');
-      content.innerHTML = `
-        <p>환불 계좌: ${info.account || '없음'}</p>
-        <p>환불 은행: ${info.bank || '없음'}</p>
-        <button onclick="closePopup()">닫기</button>
-      `;
-      document.getElementById('popup').style.display = 'flex';
-    }
+      if (error) {
+        alert('환불완료 처리 실패');
+        return;
+      }
 
-    window.closePopup = function() {
-      document.getElementById('popup').style.display = 'none';
-      currentRefundId = null;
+      const statusCell = document.querySelector(`.status[data-id="${bookingNumber}"]`);
+      if (statusCell) statusCell.textContent = '환불완료';
+      if (btn) btn.disabled = true;
     }
 
     window.addEventListener('load', loadRefunds);
@@ -157,6 +117,7 @@
           <th>전화번호</th>
           <th>환불은행</th>
           <th>환불계좌번호</th>
+          <th>환불금액</th>
           <th>상태</th>
           <th>확인</th>
         </tr>
@@ -166,9 +127,6 @@
     <div style="text-align:center; margin-top:30px;">
       <button onclick="location.href='index.html'">뒤로가기</button>
     </div>
-  </div>
-  <div id="popup">
-    <div id="popupContent"></div>
   </div>
 </body>
 </html>
