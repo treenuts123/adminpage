@@ -90,7 +90,7 @@
           <td>${Object.entries(r.welcome_drinks || {}).map(([k,v])=>`${k} ${v}`).join(', ')}</td>
           <td class="status" data-id="${r.booking_number}">${r.status}</td>
           <td>
-            <button onclick="confirmDeposit('${r.booking_number}')" ${r.status !== '입금확인 대기' ? 'disabled' : ''}>입금확인</button>
+            <button onclick="confirmDeposit('${r.booking_number}')" ${r.status !== '입금대기' ? 'disabled' : ''}>입금확인</button>
           </td>
           <td>
             ${r.status === '취소대기중'
