@@ -1,0 +1,116 @@
+<!-- admin/deposit.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>입금확인 페이지</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #fafafa;
+      padding: 30px;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th {
+      background: #f0f0f0;
+    }
+    button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 5px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button[disabled] {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+    .back-btn {
+      margin-top: 30px;
+    }
+  </style>
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
+    const supabase = createClient(
+      'https://sdnbavlcgejmvdtmzbep.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkbmJhdmxjZ2VqbXZkdG16YmVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNzM3OTEsImV4cCI6MjA2MDk0OTc5MX0.fmLedtsLoY140wrbyFmITQiu0BZQUfQxs-qIX7LmibQ'
+    )
+
+    window.confirmDeposit = async function(id, btn) {
+      const { error } = await supabase.from('reservations').update({ status: '입금완료' }).eq('booking_number', id);
+      if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${id}"]`).textContent = '입금완료';
+      btn.disabled = true;
+    }
+
+    async function loadData() {
+      const { data, error } = await supabase.from('reservations').select('*');
+      if (error) return alert('불러오기 실패');
+      const tbody = document.querySelector('#reservationsTable tbody');
+      tbody.innerHTML = '';
+      data.forEach(r => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${r.name}</td>
+          <td>${r.phone}</td>
+          <td>${r.count}</td>
+          <td>${Object.entries(r.welcome_drinks || {}).map(([k,v]) => `${k} ${v}`).join(', ')}</td>
+          <td class="status" data-id="${r.booking_number}">${r.status}</td>
+          <td>
+            <button onclick="confirmDeposit('${r.booking_number}', this)"
+              ${r.status !== '입금대기' && r.status !== '입금확인 대기' ? 'disabled' : ''}>
+              입금확인
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    window.addEventListener('load', loadData);
+  </script>
+</head>
+<body>
+  <h1>입금확인 페이지</h1>
+  <div class="container">
+    <table id="reservationsTable">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>전화번호</th>
+          <th>인원수</th>
+          <th>웰컴드링크</th>
+          <th>상태</th>
+          <th>입금확인</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <div style="text-align:center;">
+      <button class="back-btn" onclick="location.href='index.html'">뒤로가기</button>
+    </div>
+  </div>
+</body>
+</html>
