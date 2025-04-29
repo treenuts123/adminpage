@@ -15,7 +15,7 @@
       text-align: center;
     }
     .container {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: auto;
       background: white;
       padding: 20px;
@@ -91,8 +91,9 @@
           <td>${r.phone}</td>
           <td>${r.refund_bank || ''}</td>
           <td>${r.refund_account || ''}</td>
+          <td class="status" data-id="${r.booking_number}">${r.status}</td>
           <td>
-            ${r.status === '취소완료'
+            ${r.status === '환불완료'
               ? `<button onclick="showInfo('${r.booking_number}')">환불정보확인</button>`
               : `<button onclick="showConfirmPopup('${r.booking_number}')">환불완료</button>`
             }
@@ -119,9 +120,10 @@
       if (!currentRefundId) return;
       const { error } = await supabase
         .from('reservations')
-        .update({ status: '취소완료' })
+        .update({ status: '환불완료' })
         .eq('booking_number', currentRefundId);
       if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${currentRefundId}"]`).textContent = '환불완료';
       closePopup();
       loadRefunds();
     }
@@ -155,6 +157,7 @@
           <th>전화번호</th>
           <th>환불은행</th>
           <th>환불계좌번호</th>
+          <th>상태</th>
           <th>확인</th>
         </tr>
       </thead>
