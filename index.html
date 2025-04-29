@@ -146,6 +146,10 @@
 
       // 입금확인 버튼 숨기기
       document.getElementById(`statusInfo-${bookingNumber}`).style.display = 'none';
+
+      // 상태를 예매완료로 변경
+      const statusInfo = document.getElementById(`statusInfo-${bookingNumber}`);
+      statusInfo.innerHTML = `<p>상태: 예매완료</p>`;
     }
 
     // 환불 완료 버튼 클릭 시 상태 변경
