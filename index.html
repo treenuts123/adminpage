@@ -87,4 +87,90 @@
           <td>${r.name}</td>
           <td>${r.phone}</td>
           <td>${r.count}</td>
-          <
+          <td>${Object.entries(r.welcome_drinks || {}).map(([k,v])=>`${k} ${v}`).join(', ')}</td>
+          <td class="status" data-id="${r.booking_number}">${r.status}</td>
+          <td>
+            <button onclick="confirmDeposit('${r.booking_number}')" ${(r.status !== '입금대기' && r.status !== '입금확인 대기') ? 'disabled' : ''}>입금확인</button>
+          </td>
+          <td>
+            ${r.status === '취소대기중'
+              ? `<button onclick="showRefundPopup('${r.booking_number}')">환불계좌확인</button>`
+              : r.status === '취소완료'
+                ? `<button onclick="showRefundInfo('${r.booking_number}')">환불정보확인</button>`
+                : `<button disabled>환불</button>`
+            }
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function confirmDeposit(id) {
+      const { error } = await supabase.from('reservations').update({ status: '입금완료' }).eq('booking_number', id);
+      if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${id}"]`).textContent = '입금완료';
+      event.target.disabled = true;
+    }
+
+    function showRefundPopup(id) {
+      currentRefundBooking = id;
+      const info = refundInfoMap[id];
+      document.getElementById('popupContent').innerHTML = `
+        <p>환불 계좌: ${info.account || '입력안됨'}</p>
+        <p>환불 은행: ${info.bank || '입력안됨'}</p>
+        <button onclick="completeRefund()">환불완료</button>
+        <button onclick="closePopup()">취소</button>
+      `;
+      document.getElementById('popup').style.display = 'flex';
+    }
+
+    async function completeRefund() {
+      if (!currentRefundBooking) return;
+      const { error } = await supabase.from('reservations').update({ status: '취소완료' }).eq('booking_number', currentRefundBooking);
+      if (error) return alert('업데이트 실패');
+      document.querySelector(`.status[data-id="${currentRefundBooking}"]`).textContent = '취소완료';
+      closePopup();
+      loadData();
+    }
+
+    function showRefundInfo(id) {
+      const info = refundInfoMap[id];
+      document.getElementById('popupContent').innerHTML = `
+        <p>환불 계좌: ${info.account || '입력안됨'}</p>
+        <p>환불 은행: ${info.bank || '입력안됨'}</p>
+        <button onclick="closePopup()">닫기</button>
+      `;
+      document.getElementById('popup').style.display = 'flex';
+    }
+
+    function closePopup() {
+      document.getElementById('popup').style.display = 'none';
+      currentRefundBooking = null;
+    }
+
+    window.addEventListener('load', loadData);
+  </script>
+</head>
+<body>
+  <h1>관리자 페이지</h1>
+  <div class="container">
+    <table id="reservationsTable">
+      <thead>
+        <tr>
+          <th>이름</th>
+          <th>전화번호</th>
+          <th>인원수</th>
+          <th>웰컴드링크</th>
+          <th>상태</th>
+          <th>입금확인</th>
+          <th>환불정보</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div id="popup">
+    <div id="popupContent"></div>
+  </div>
+</body>
+</html>
