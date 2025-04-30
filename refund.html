@@ -61,6 +61,7 @@
         alert('데이터 불러오기 실패');
         return;
       }
+
       const tbody = document.querySelector('#refundTable tbody');
       tbody.innerHTML = '';
 
@@ -125,7 +126,7 @@
       <tbody></tbody>
     </table>
     <div style="text-align:center; margin-top:30px;">
-      <button onclick="location.href='index.html'">뒤로가기</button>
+      <button onclick="location.href='index.html?auth=1'">뒤로가기</button>
     </div>
   </div>
 </body>
