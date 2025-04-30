@@ -52,16 +52,25 @@
     function checkPassword() {
       const input = document.getElementById('password').value;
       if (input === pw) {
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('menuSection').style.display = 'block';
+        // replace로 교체하면 뒤로가기 해도 로그인 화면 안 보임
+        location.replace('index.html?auth=1');
       } else {
         alert('비밀번호가 틀렸습니다.');
       }
     }
 
-    // 최초 로드 시 로그인부터 시작
+    function showMenu() {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('menuSection').style.display = 'block';
+    }
+
     window.onload = () => {
-      document.getElementById('loginSection').style.display = 'block';
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('auth') === '1') {
+        showMenu();
+      } else {
+        document.getElementById('loginSection').style.display = 'block';
+      }
     };
   </script>
 </body>
