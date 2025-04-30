@@ -59,9 +59,9 @@
     )
 
     window.confirmDeposit = async function(id, btn) {
-      const { error } = await supabase.from('reservations').update({ status: '입금완료' }).eq('booking_number', id);
+      const { error } = await supabase.from('reservations').update({ status: '예매완료' }).eq('booking_number', id);
       if (error) return alert('업데이트 실패');
-      document.querySelector(`.status[data-id="${id}"]`).textContent = '입금완료';
+      document.querySelector(`.status[data-id="${id}"]`).textContent = '예매완료';
       btn.disabled = true;
     }
 
